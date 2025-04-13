@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ Assistantname }} AI</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="chat-container">
+        <h1>{{ Assistantname }} AI Assistant</h1>
+        
+        <div class="chat-box" id="chatBox">
+            <!-- Messages will appear here -->
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="Type your message...">
+            <button id="sendButton">Send</button>
+            <button id="voiceButton">🎤</button>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('sendButton').addEventListener('click', sendMessage);
+        document.getElementById('voiceButton').addEventListener('click', startVoiceRecording);
+        
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            
+            if(message) {
+                addMessage("You: " + message, 'user');
+                input.value = '';
+                
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                addMessage("{{ Assistantname }}: " + data.response, 'bot');
+            }
+        }
+        
+        function addMessage(text, sender) {
+            const chatBox = document.getElementById('chatBox');
+            const msgElement = document.createElement('div');
+            msgElement.className = `message ${sender}`;
+            msgElement.textContent = text;
+            chatBox.appendChild(msgElement);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+        
+        // Voice recording functionality
+        let mediaRecorder;
+        async function startVoiceRecording() {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            const audioChunks = [];
+            
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+            
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks);
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.webm');
+                
+                const response = await fetch('/voice', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                document.getElementById('userInput').value = data.text;
+            };
+            
+            mediaRecorder.start();
+            setTimeout(() => mediaRecorder.stop(), 3000); // 3 second recording
+        }
+    </script>
+</body>
+</html>
